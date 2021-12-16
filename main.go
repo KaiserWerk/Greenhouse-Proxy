@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/huin/goserial"
@@ -16,11 +16,14 @@ type Measurement struct {
 	WaterLevel     float64 `json:"water_level"`
 }
 
-var m Measurement
+var (
+	m  Measurement
+	cl = &http.Client{Timeout: 2 * time.Second}
+)
 
 func main() {
 	// Find the device that represents the Arduino serial connection.
-	c := &goserial.Config{Name: `\\.\COM4`, Baud: 9600}
+	c := &goserial.Config{Name: `\\.\COM5`, Baud: 9600}
 	s, err := goserial.OpenPort(c)
 	if err != nil {
 		log.Fatalf("could not open port: %s", err.Error())
@@ -32,17 +35,21 @@ func main() {
 
 	br := bufio.NewReader(s)
 	for {
-		b, _, err := br.ReadLine()
+		b, err := br.ReadBytes('\n')
 		if err != nil {
-			fmt.Println("could not read line:", err.Error())
-			break
+			log.Printf("could not read line: %s\n", err.Error())
+			continue
 		}
 
-		//log.Printf("received data: %s\n", b)
-		err = json.Unmarshal(b, &m)
+		if len(b) < 2 {
+			log.Println("got empty line")
+			continue
+		}
+
+		err = json.Unmarshal(b[:len(b)-2], &m)
 		if err != nil {
-			fmt.Printf("could not decode JSON '%s': %s", b, err.Error())
-			break
+			log.Printf("could not decode JSON '%s': %s\n", b, err.Error())
+			continue
 		}
 
 		log.Printf("Lufttemperatur: %.1f°C, Luftfeuchte: %.1f%%, Wasserstand: %.1f%%\n", m.AirTemperature, m.Humidity, m.WaterLevel)
