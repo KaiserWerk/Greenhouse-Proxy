@@ -1,4 +1,4 @@
-module test
+module github.com/KaiserWerk/Greenhouse-Proxy
 
 go 1.17
 
