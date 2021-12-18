@@ -28,6 +28,7 @@ const (
 var (
 	err              error
 	baseUrl          = "http://127.0.0.1:47336/api/v1/receive"
+	key              = ""
 	emptyLineCounter int64
 	maxEmptyLines    int64 = 100
 )
@@ -48,7 +49,12 @@ start:
 		baseUrl = u
 	}
 
-	// Find the device that represents the Arduino serial connection.
+	if k := os.Getenv("GREENHOUSE_PROXY_KEY"); k != "" {
+		log.Printf("found key env var, setting to '%s'...\n", k)
+		key = k
+	}
+
+	// NOTE: find the device that represents the Arduino serial connection
 	log.Println("Now trying to find open Serial Port...")
 	for i := 0; i < 10; i++ {
 		if runtime.GOOS == "windows" {
