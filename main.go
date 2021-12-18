@@ -26,11 +26,14 @@ const (
 )
 
 var (
-	err     error
-	baseUrl = "http://127.0.0.1:47336/api/v1/receive"
+	err              error
+	baseUrl          = "http://127.0.0.1:47336/api/v1/receive"
+	emptyLineCounter int64
+	maxEmptyLines    int64 = 100
 )
 
 func main() {
+	log.Println("Starting up...")
 	var (
 		m    Measurement
 		s    io.ReadWriteCloser
@@ -38,11 +41,15 @@ func main() {
 		cl   = &http.Client{Timeout: 2 * time.Second}
 	)
 
+start:
+
 	if u := os.Getenv("GREENHOUSE_PROXY_BASEURL"); u != "" {
+		log.Printf("found baseUrl env var, setting to '%s'...\n", u)
 		baseUrl = u
 	}
 
 	// Find the device that represents the Arduino serial connection.
+	log.Println("Now trying to find open Serial Port...")
 	for i := 0; i < 10; i++ {
 		if runtime.GOOS == "windows" {
 			port = fmt.Sprintf(`\\.\COM%d`, i)
@@ -61,10 +68,16 @@ func main() {
 
 	// When connecting to an older revision Arduino, you need to wait
 	// a little while it resets.
+	log.Println("waiting for arduino reset")
 	time.Sleep(1 * time.Second)
 
+	log.Println("starting to read from Serial Port...")
 	br := bufio.NewReader(s)
 	for {
+		if emptyLineCounter > maxEmptyLines {
+			emptyLineCounter = 0
+			break
+		}
 		b, err := br.ReadBytes('\n')
 		if err != nil {
 			log.Printf("could not read line: %s\n", err.Error())
@@ -73,7 +86,7 @@ func main() {
 
 		if len(b) < 2 {
 			log.Println("got empty line")
-
+			emptyLineCounter++
 			continue
 		}
 
@@ -84,8 +97,13 @@ func main() {
 		}
 
 		log.Printf("Lufttemperatur: %.1f°C, Luftfeuchte: %.1f%%, Wasserstand: %.1f%%\n", m.AirTemperature, m.Humidity, m.WaterLevel)
-		sendMeasurement(cl, &m)
+		err = sendMeasurement(cl, &m)
+		if err != nil {
+			log.Printf("could not set POST request with measurements: %s", err.Error())
+		}
 	}
+
+	goto start
 }
 
 func sendMeasurement(cl *http.Client, m *Measurement) error {
