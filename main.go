@@ -106,7 +106,10 @@ start:
 		err = sendMeasurement(cl, &m)
 		if err != nil {
 			log.Printf("could not set POST request with measurements: %s", err.Error())
+			continue
 		}
+
+		log.Println("successfully sent request")
 	}
 
 	goto start
