@@ -37,7 +37,7 @@ func main() {
 	log.Println("Starting up...")
 	var (
 		m    Measurement
-		s    io.ReadWriteCloser
+		rwc  io.ReadWriteCloser
 		port string
 		cl   = &http.Client{Timeout: 2 * time.Second}
 	)
@@ -56,7 +56,8 @@ start:
 
 	// NOTE: find the device that represents the Arduino serial connection
 	log.Println("Now trying to find open Serial Port...")
-	for i := 0; i < 10; i++ {
+	var i int
+	for i = 0; i < 10; i++ {
 		if runtime.GOOS == "windows" {
 			port = fmt.Sprintf(`\\.\COM%d`, i)
 		} else {
@@ -64,12 +65,17 @@ start:
 		}
 		log.Printf("attempting to open port %s...\n", port)
 		c := &goserial.Config{Name: port, Baud: 9600}
-		s, err = goserial.OpenPort(c)
+		s, err := goserial.OpenPort(c)
 		if err == nil {
+			rwc = s
 			log.Printf("now using port %s\n", port)
 			break
 		}
 		log.Printf("could not open port %s: %s\n", port, err.Error())
+	}
+
+	if rwc == nil {
+		log.Fatal("failed to connect to any serial port")
 	}
 
 	// When connecting to an older revision Arduino, you need to wait
@@ -78,7 +84,7 @@ start:
 	time.Sleep(1 * time.Second)
 
 	log.Println("starting to read from Serial Port...")
-	br := bufio.NewReader(s)
+	br := bufio.NewReader(rwc)
 	for {
 		if emptyLineCounter > maxEmptyLines {
 			emptyLineCounter = 0
