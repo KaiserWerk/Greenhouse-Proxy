@@ -121,6 +121,7 @@ func sendMeasurement(cl *http.Client, m *Measurement) error {
 	if err != nil {
 		return err
 	}
+	req.Header.Set("X-Greenhouse-Key", key)
 
 	resp, err := cl.Do(req)
 	if err != nil {
