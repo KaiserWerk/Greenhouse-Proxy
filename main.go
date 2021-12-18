@@ -49,10 +49,11 @@ func main() {
 		} else {
 			port = fmt.Sprintf(`/dev/ttyUSB%d`, i)
 		}
+		log.Printf("attempting to open port %s...\n", port)
 		c := &goserial.Config{Name: port, Baud: 9600}
 		s, err = goserial.OpenPort(c)
 		if err == nil {
-			log.Printf("found port %s\n", port)
+			log.Printf("now using port %s\n", port)
 			break
 		}
 		log.Printf("could not open port %s: %s\n", port, err.Error())
@@ -92,7 +93,7 @@ func sendMeasurement(cl *http.Client, m *Measurement) error {
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:47336/api/v1/receive", bytes.NewBuffer(b))
+	req, err := http.NewRequest(http.MethodPost, baseUrl+apiRoute, bytes.NewBuffer(b))
 	if err != nil {
 		return err
 	}
